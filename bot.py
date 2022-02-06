@@ -5,7 +5,6 @@ import pandas as pd
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.ext.commands.context import Context
-from wordleturdle.recommender import reduce_unknown
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -38,40 +37,41 @@ def userdata(ctx: Context) -> UserData:
 
 
 def recommend(userdata: UserData, rank_strategy: str) -> pd.DataFrame:
-    """
-    TODO
-    1. keep two frames, one with known and one without known and most discriminating
-    2. build positional probability from the start. so count of e's in column 1 supplimments 
-    """
-
     if rank_strategy == "lps":
         return userdata.df_latest.sort_values(["letterprobsum"], ascending=False)
     elif rank_strategy == "ups":
         return userdata.df_latest.sort_values(["uniqueprobsum"], ascending=False)
-    elif rank_strategy == "posps":
+    elif rank_strategy == "discr":
         userdata.df_discriminating.sort_values(["letterprobsum"], ascending=False)
+    elif rank_strategy == "posps":
+        return userdata.df_latest.sort_values(["posprobsum"], ascending=False)
+    elif rank_strategy == "gfreq":
+        return userdata.df_latest.sort_values(["wordfreq"], ascending=False)
     else:
-        raise Exception("invalid option chosen: [lps|ups|posps]")
+        raise Exception("invalid option chosen: [lps|ups|posps|discr|gfreq]")
 
 
 @bot.command(
     name="new", help="Starts a new Wordle session with Standford | Google catalog"
 )
 async def new(ctx: Context, word_bank: str):
-    from .catalogs import Stanford, GoogleNGram
+    from .catalogs import Stanford, GoogleNGram, build_frame
 
     if word_bank == "Stanford" or word_bank != "Google":
         lines = Stanford()
     else:
         lines = GoogleNGram()
-    userdata(ctx=ctx).df = pd.DataFrame(data=lines[1:], columns=lines[0])
-    userdata(ctx=ctx).df_latest = userdata(ctx=ctx).df.copy()
-    userdata(ctx=ctx).df_discriminating = userdata(ctx=ctx).df.copy()
+    df = build_frame(lines=lines)
+    userdata(ctx=ctx).df = df
+    userdata(ctx=ctx).df_latest = df.copy()
+    userdata(ctx=ctx).df_discriminating = df.copy()
 
     await ctx.send(f"{author_name(ctx=ctx)} let's roll!")
 
 
-@bot.command(name="recommend", help="Provide recommendation: [lps|ups|posps]")
+@bot.command(
+    name="recommend", help="Provide recommendation: [lps|ups|gfreq|posps|discr]"
+)
 async def recommend(ctx: Context, strategy):
     rec = recommend(userdata=user_userdata(ctx=ctx), rank_strategy=strategy)
     await ctx.send(f"{rec.head(3)}")
@@ -84,8 +84,12 @@ async def guess(ctx: Context, guess: str, result: str):
     # result0="xgxyx"
     from .recommender import do_guess, do_eliminate
 
-    userdata(ctx=ctx).df_latest = do_guess(userdata(ctx=ctx).df_latest, word=guess, result=result)
-    userdata(ctx=ctx).df_discriminating = do_eliminate(user_userdata(ctx=ctx).df,word=guess,result=result)
+    userdata(ctx=ctx).df_latest = do_guess(
+        userdata(ctx=ctx).df_latest, word=guess, result=result
+    )
+    userdata(ctx=ctx).df_discriminating = do_eliminate(
+        user_userdata(ctx=ctx).df, word=guess, result=result
+    )
     await ctx.send(f"{userdata(ctx=ctx).df_latest.head(3)}")
 
 
