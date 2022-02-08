@@ -9,10 +9,11 @@ def reduce_known(letter, result, index, row) -> bool:
     # y = letter not this position
     # g = letter in this position
     # TODO: handle case of repeating letters which are x's while others are green (yellow?)
-    # if word has multiple letters, right position is green. 
+    # if word has multiple letters, right position is green.
     # repeat letter is yellow if out of position or black if word doesn't have more
-
-    keep_it &= not letter in row["word"] if result == "x" else True # fails on >1 guess and 1 result
+    keep_it &= (
+        not letter in row["word"] if result == "x" else True
+    )  # fails on >1 guess and 1 result
     keep_it &= row[f"w{index}"] != letter if result == "y" else True
     keep_it &= row[f"w{index}"] == letter if result == "g" else True
     keep_it &= letter in row["word"] if result == "y" else True
@@ -21,10 +22,12 @@ def reduce_known(letter, result, index, row) -> bool:
 
 def reduce_unknown(letter, result, index, row) -> bool:
     keep_it = True
-    # y = letter in word
-    # g = do not pick these
+    # y = letter in word, let it mellow if needed
+    # g = in word, wasted choice to repeat
+    # x = not in word, wasted choice to repeat
     keep_it &= row[f"w{index}"] != letter if result == "g" else True
-    keep_it &= letter not in row["word"] if result == "y" else True
+    # keep_it &= letter not in row["word"] if result == "y" else True
+    keep_it &= letter not in row["word"] if result == "x" else True # TODO repeat letter issue
     return keep_it
 
 
@@ -32,7 +35,6 @@ def process_result(df, word_result, reducer) -> pd.DataFrame:
     df_word = df.copy()
     for c_r_i in word_result:
         letter, result, index = c_r_i
-        result = int(result)
         index = int(index)
         # TODO is this where the false Yellow correction needs to start?
         df_word = df_word[

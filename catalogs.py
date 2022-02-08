@@ -1,11 +1,10 @@
 import pandas as pd
 
-"""
-https://www.iflscience.com/editors-blog/linguistic-expert-recommends-the-best-opening-wordle-word/
-"""
-
 
 def letter_prob():
+    """
+    https://www.iflscience.com/editors-blog/linguistic-expert-recommends-the-best-opening-wordle-word/
+    """
     return dict(
         S=3033,
         E=3009,
@@ -44,30 +43,13 @@ def Stanford() -> list[list]:
     with open("stanford_5words.txt") as f:
         lines.append(
             [
-                "w0",
-                "w1",
-                "w2",
-                "w3",
-                "w4",
                 "word",
-                "letterprobsum",
-                "uniqueprobsum",
-                "wordfreq",
-                "posprobsum",
             ]
         )
         f.readline()  # throw away header
         for line in f.readlines():
-            record = list(line.strip())
+            record = list()
             record.append(line.strip())
-            record.append(
-                sum([letter_prob.get(a.upper(), 0) for a in list(line.strip())])
-            )
-            record.append(
-                sum([letter_prob.get(a.upper(), 0) for a in set(line.strip())])
-            )
-            record.append(None)
-            record.append(None)
             lines.append(record)
     return lines
 
@@ -83,40 +65,69 @@ def GoogleNGram() -> list[list]:
     with open("google_word_freq.txt") as f:
         lines.append(
             [
-                "w0",
-                "w1",
-                "w2",
-                "w3",
-                "w4",
                 "word",
-                "letterprobsum",
-                "uniqueprobsum",
                 "wordfreq",
-                "posprobsum",
             ]
         )
         for line in f.readlines():
             line, freq = line.split(",")
-            record = list(line.strip())
+            if len(line) > 5:
+                continue
+            record = list()
             record.append(line.strip())
-            record.append(
-                sum([letter_prob.get(a.upper(), 0) for a in list(line.strip())])
-            )
-            record.append(
-                sum([letter_prob.get(a.upper(), 0) for a in set(line.strip())])
-            )
-            record.append(freq)
-            record.append(None)
+            record.append(int(freq.strip()))
             lines.append(record)
     return lines
 
 
-def build_frame(lines: list[list]) -> pd.DataFrame:
-    df = pd.DataFrame(data=lines[1:], columns=lines[0])
-    df_pos = build_pos_freq(df=df)
-    # TODO merge df and df_pos to get static positional prob
-    # df:w0 char in pos_freq
-    return df
+def build_frame() -> pd.DataFrame:
+    lines = Stanford()
+    df1 = pd.DataFrame(data=lines[1:], columns=lines[0])
+    df1["Standford"] = True
+    lines = GoogleNGram()
+    df2 = pd.DataFrame(data=lines[1:], columns=lines[0])
+    df2["Google"] = True
+    dfm = pd.merge(df1, df2, "outer", left_on="word", right_on="word")
+    dfm["w0"] = dfm["word"].apply(lambda word: list(word)[0])
+    dfm["w1"] = dfm["word"].apply(lambda word: list(word)[1])
+    dfm["w2"] = dfm["word"].apply(lambda word: list(word)[2])
+    dfm["w3"] = dfm["word"].apply(lambda word: list(word)[3])
+    dfm["w4"] = dfm["word"].apply(lambda word: list(word)[4])
+    dfm["letterprobsum"] = dfm["word"].apply(
+        lambda word: sum([letter_prob().get(a.upper(), 0) for a in list(word)])
+    )
+    dfm["uniqueprobsum"] = dfm["word"].apply(
+        lambda word: sum([letter_prob().get(a.upper(), 0) for a in set(word)])
+    )
+    return update_pos_freq(dfm=dfm)
+
+
+def update_pos_freq(dfm: pd.DataFrame) -> pd.DataFrame:
+    dfm = dfm.drop(
+        columns=["w0pf", "w1pf", "w2pf", "w3pf", "w4pf", "posprobsum"], errors="ignore"
+    )
+    df_pos = build_pos_freq(df=dfm)
+    dfm_pos0 = pd.merge(dfm, df_pos["w0pf"], "left", left_on=["w0"], right_index=True)
+    dfm_pos1 = pd.merge(
+        dfm_pos0, df_pos["w1pf"], "left", left_on=["w1"], right_index=True
+    )
+    dfm_pos2 = pd.merge(
+        dfm_pos1, df_pos["w2pf"], "left", left_on=["w2"], right_index=True
+    )
+    dfm_pos3 = pd.merge(
+        dfm_pos2, df_pos["w3pf"], "left", left_on=["w3"], right_index=True
+    )
+    dfm_pos4 = pd.merge(
+        dfm_pos3, df_pos["w4pf"], "left", left_on=["w4"], right_index=True
+    )
+    dfm_pos4["posprobsum"] = (
+        dfm_pos4["w0pf"]
+        + dfm_pos4["w1pf"]
+        + dfm_pos4["w2pf"]
+        + dfm_pos4["w3pf"]
+        + dfm_pos4["w4pf"]
+    )
+    return dfm_pos4
 
 
 def build_pos_freq(df: pd.DataFrame) -> pd.DataFrame:
@@ -125,4 +136,8 @@ def build_pos_freq(df: pd.DataFrame) -> pd.DataFrame:
     w2 = df["w2"].value_counts().sort_values()
     w3 = df["w3"].value_counts().sort_values()
     w4 = df["w4"].value_counts().sort_values()
-    return pd.concat([w0, w1, w2, w3, w4], axis=1)
+    pf_df = pd.concat([w0, w1, w2, w3, w4], axis=1)
+    df_pf = pf_df.rename(
+        columns={"w0": "w0pf", "w1": "w1pf", "w2": "w2pf", "w3": "w3pf", "w4": "w4pf"}
+    )
+    return df_pf
