@@ -67,7 +67,7 @@ df = build_frame()
 async def new(ctx: Context, word_bank: str):
     global df
     if word_bank == "Stanford" or word_bank != "Google":
-        new_df = df[df["Standford"] == True]
+        new_df = df[df["Stanford"] == True]
     else:
         new_df = df[df["Google"] == True]
 
