@@ -2,9 +2,13 @@
 import os
 import pandas as pd
 
-from dotenv import load_dotenv
+import discord
 from discord.ext import commands
 from discord.ext.commands.context import Context
+from dotenv import load_dotenv
+
+from catalogs import build_frame, update_pos_freq
+from recommender import do_guess, do_eliminate
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -53,7 +57,6 @@ def make_recommendation(userdata: UserData, rank_strategy: str) -> pd.DataFrame:
         raise Exception("invalid option chosen: [lps|ups|posps|discr|gfreq]")
 
 
-from catalogs import build_frame
 
 df = build_frame()
 
@@ -70,7 +73,6 @@ async def new(ctx: Context, word_bank: str):
 
     userdata(ctx=ctx).df_latest = new_df
     userdata(ctx=ctx).df_discriminating = new_df.copy()
-    import discord
 
     game = discord.Game("Wordle with {}".format(author_name(ctx=ctx)))
     await bot.change_presence(activity=game)
@@ -90,8 +92,6 @@ async def guess(ctx: Context, guess: str, result: str):
     # df_sorted
     # word0 = "ghost"
     # result0="xgxyx"
-    from recommender import do_guess, do_eliminate
-    from catalogs import update_pos_freq
 
     df_latest = do_guess(userdata(ctx=ctx).df_latest, word=guess, result=result)
     # update positional freq within known dataset
