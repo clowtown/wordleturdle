@@ -83,7 +83,7 @@ def GoogleNGram() -> list[list]:
 def build_frame() -> pd.DataFrame:
     lines = Stanford()
     df1 = pd.DataFrame(data=lines[1:], columns=lines[0])
-    df1["Standford"] = True
+    df1["Stanford"] = True
     lines = GoogleNGram()
     df2 = pd.DataFrame(data=lines[1:], columns=lines[0])
     df2["Google"] = True
