@@ -1,14 +1,14 @@
 # bot.py
 import os
-import pandas as pd
 
 import discord
+import pandas as pd
 from discord.ext import commands
 from discord.ext.commands.context import Context
 from dotenv import load_dotenv
 
 from catalogs import build_frame, update_pos_freq
-from recommender import do_guess, do_eliminate
+from recommender import do_eliminate, do_guess
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
